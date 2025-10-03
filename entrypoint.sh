@@ -63,9 +63,30 @@ mkdir -p /var/lib/odoo
 chown -R odoo:odoo /var/lib/odoo
 
 # Finally run Odoo with any provided arguments
-# Railway uses 'postgres' user by default, which Odoo considers risky
-# We'll bypass this by calling odoo directly with --allow-root and other flags
-echo "Starting Odoo directly to bypass postgres user check..."
+# Railway uses 'postgres' user by default, which Odoo considers risky.
+# We previously attempted to always switch to the 'odoo' user with gosu,
+# but some container runtimes (like Railway's) disallow setuid operations
+# which makes gosu fail with "operation not permitted". To be robust we:
+#  - try to use gosu if it exists and the current process is root and gosu can switch
+#  - fall back to exec'ing Odoo directly when gosu isn't available or is not permitted
 
-# Run Odoo directly bypassing the original entrypoint security checks
-exec gosu odoo /usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US "$@"
+echo "Starting Odoo (attempting to drop privileges if possible)..."
+
+# Build the base command we want to run
+ODOO_CMD=(/usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
+
+# If we're root and gosu is installed, try to use it. Test first to avoid crashes.
+if command -v gosu >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
+  echo "gosu found, testing ability to switch to 'odoo' user..."
+  if gosu odoo true >/dev/null 2>&1; then
+    echo "gosu can switch to 'odoo' user — starting Odoo as 'odoo'"
+    exec gosu odoo "${ODOO_CMD[@]}" "$@"
+  else
+    echo "[WARN] gosu is present but cannot switch to 'odoo' in this runtime. Falling back to direct start."
+  fi
+else
+  echo "gosu not present or not running as root; starting Odoo with current user"
+fi
+
+# Final fallback — start Odoo directly (may run as non-root or root depending on runtime)
+exec "${ODOO_CMD[@]}" "$@"

@@ -77,6 +77,54 @@ railway connect --service odoo --command "pg_dump -Fc -f \"$BACKUP_DIR/$(date +%
 ```
 Consider syncing those dumps to object storage (e.g. Backblaze B2 or AWS S3) for long-term retention.
 
+## Restoring an existing AATCO database
+
+If you want the Railway instance to run with a copy of your on-premise/local AATCO database, follow these steps:
+
+1. **Export the database locally**
+   ```powershell
+   # Replace aatco with your local database name
+   "C:\Program Files\Odoo 18.0.20250930\PostgreSQL\bin\pg_dump.exe" `
+     -U postgres -d aatco -F p -f "$env:TEMP\aatco_backup.sql"
+   ```
+   The `-F p` flag produces a plain-text SQL file that psql can replay.
+
+2. **Open a Railway Postgres session**
+   ```powershell
+   railway connect Postgres
+   ```
+   This launches `psql` locally with a tunnel to Railway.
+
+3. **Prep the target database** (inside the `psql` prompt):
+   ```sql
+   \set DB_NAME railway
+   \set DB_OWNER odoo_user
+   \i 'C:/Program Files/Odoo 17.0.20250930/deployment/railway/scripts/prepare_database.sql'
+   ```
+   Adjust `DB_NAME` if you prefer a different database name.
+
+4. **Replay your dump**
+   ```sql
+   \i 'C:/Users/<you>/AppData/Local/Temp/aatco_backup.sql'
+   ```
+   Use the actual path to the SQL file produced in step 1.
+
+5. **Reapply privileges**
+   ```sql
+   \set DB_NAME railway
+   \set DB_OWNER odoo_user
+   \i 'C:/Program Files/Odoo 17.0.20250930/deployment/railway/fix_permissions.sql'
+   \q
+   ```
+
+6. **Restart the Railway Odoo service**
+   ```powershell
+   railway variables --set "ODOO_DB_FILTER=^railway$"
+   railway up
+   ```
+
+After the redeploy finishes, browse to the Railway URL and log in using your existing AATCO credentials. Disable `ODOO_LIST_DB` if you temporarily enabled it for debugging.
+
 ## Health checks
 
 The Dockerfile exposes port 8069. Railway probes `/web/health` (built-in Odoo endpoint). If you modify routes or add maintenance pages, ensure the health endpoint still responds with HTTP 200.

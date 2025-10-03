@@ -24,7 +24,13 @@ echo "  DB_USER = $DB_USER"
 echo "  DB_NAME = $DB_NAME"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-change_me}" # STRONG password recommended
 export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
-export ODOO_HTTP_PORT="${PORT:-8069}"
+# Railway's router forwards traffic to the service's targetPort (set in Railway).
+# The project service on Railway is configured with targetPort=8069, so we must
+# ensure Odoo listens on 8069 inside the container. Railway also injects a
+# container-level PORT (e.g. 8080) for certain runtimes; using that would cause
+# a mismatch with the router and lead to connection timeouts. For reliability
+# bind Odoo to 8069 unless you intentionally want a different internal port.
+export ODOO_HTTP_PORT="8069"
 
 echo "DEBUG: Using HTTP PORT = $ODOO_HTTP_PORT"
 

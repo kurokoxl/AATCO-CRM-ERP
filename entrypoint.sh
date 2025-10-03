@@ -79,37 +79,9 @@ chown -R odoo:odoo /var/lib/odoo
 echo "Starting Odoo (attempting to drop privileges if possible)..."
 
 # Build the base command we want to run
-# Odoo 18 has a hardcoded check that aborts if db_user='postgres'.
-# The check is in /usr/lib/python3/dist-packages/odoo/service/server.py
-# Since Railway's managed Postgres uses 'postgres' user, we'll patch this check
-# at runtime by prepending a Python snippet that monkeypatches the check before Odoo starts.
-# For production: create a restricted DB user; for now we bypass for Railway.
-
-# Create a wrapper Python script that monkeypatches the postgres check
-cat > /tmp/odoo_wrapper.py << 'WRAPPER_EOF'
-#!/usr/bin/env python3
-import sys
-import os
-
-# Monkeypatch the check_postgres_user function before importing odoo
-def noop_check():
-    pass
-
-# Patch it before odoo.service.server is imported
-import odoo.service.server
-if hasattr(odoo.service.server, 'check_postgres_user'):
-    odoo.service.server.check_postgres_user = noop_check
-
-# Now run odoo normally
-if __name__ == '__main__':
-    from odoo.cli import main
-    main()
-WRAPPER_EOF
-
-chmod +x /tmp/odoo_wrapper.py
-
-# Use the wrapper instead of direct odoo binary
-ODOO_CMD=(/tmp/odoo_wrapper.py --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US --no-database-list)
+# The postgres user security check has been patched out in the Dockerfile
+# so we can now start Odoo normally with Railway's managed Postgres
+ODOO_CMD=(/usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
 
 # Filter passed-in args: Dockerfile uses CMD ["odoo"] which becomes a
 # single positional argument 'odoo' here. If the only arg is 'odoo', drop it

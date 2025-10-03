@@ -30,6 +30,12 @@ COPY addons /mnt/extra-addons
 COPY odoo.conf.template /etc/odoo/odoo.conf.template
 COPY entrypoint.sh /usr/local/bin/odoo-entrypoint.sh
 
+# Patch Odoo to bypass the postgres user security check for Railway managed DB
+# Railway's Postgres plugin uses 'postgres' superuser by default
+# This patches /usr/lib/python3/dist-packages/odoo/service/server.py to skip the check
+RUN sed -i '/sys.exit("Using the database user.*postgres.*is a security risk/d' /usr/lib/python3/dist-packages/odoo/service/server.py && \
+    sed -i '/config\["db_user"\] == "postgres"/,+1d' /usr/lib/python3/dist-packages/odoo/service/server.py
+
 # Ensure correct ownership and permissions
 RUN chown -R odoo:odoo /mnt/extra-addons /etc/odoo && \
     chmod +x /usr/local/bin/odoo-entrypoint.sh

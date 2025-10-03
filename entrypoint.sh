@@ -55,6 +55,25 @@ export TEMPLATE_ADMIN_PASSWORD="$ADMIN_PASSWORD"
 export TEMPLATE_DB_FILTER="$ODOO_DB_FILTER"
 export TEMPLATE_HTTP_PORT="$ODOO_HTTP_PORT"
 
+# Toggle database manager visibility (list_db) via ODOO_LIST_DB env var.
+# Default stays False for production safety unless explicitly enabled.
+if [[ -n "${ODOO_LIST_DB:-}" ]]; then
+  case "$(printf '%s' "$ODOO_LIST_DB" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on)
+      export TEMPLATE_LIST_DB="True"
+      ;;
+    0|false|no|off)
+      export TEMPLATE_LIST_DB="False"
+      ;;
+    *)
+      echo "[WARN] ODOO_LIST_DB has unexpected value '$ODOO_LIST_DB'; defaulting to False" >&2
+      export TEMPLATE_LIST_DB="False"
+      ;;
+  esac
+else
+  export TEMPLATE_LIST_DB="False"
+fi
+
 # shellcheck disable=SC2002
 cat "$CONFIG_TEMPLATE" | envsubst > "$CONFIG_FILE"
 chmod 640 "$CONFIG_FILE"

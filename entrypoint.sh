@@ -24,7 +24,9 @@ echo "  DB_USER = $DB_USER"
 echo "  DB_NAME = $DB_NAME"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-change_me}" # STRONG password recommended
 export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
-export ODOO_HTTP_PORT="${PORT:-${ODOO_HTTP_PORT:-8069}}"
+export ODOO_HTTP_PORT="${PORT:-8069}"
+
+echo "DEBUG: Using HTTP PORT = $ODOO_HTTP_PORT"
 
 CONFIG_TEMPLATE=${ODOO_CONFIG_TEMPLATE:-/etc/odoo/odoo.conf.template}
 CONFIG_FILE=${ODOO_CONFIG_PATH:-/etc/odoo/odoo.conf}

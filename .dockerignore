@@ -1,0 +1,29 @@
+# Ignore local configuration and temporary files
+*.pyc
+__pycache__/
+*.pyo
+*.log
+*.swp
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Ignore Python virtual environments
+venv/
+.env/
+.venv/
+
+# Ignore git metadata and CI caches
+.git/
+.gitignore
+.github/
+
+# Ignore editor directories
+.vscode/
+.idea/
+*.code-workspace
+
+# Ignore backups and exports
+backups/
+exports/

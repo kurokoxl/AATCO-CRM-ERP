@@ -1,0 +1,29 @@
+{
+  "description": "Example Railway project definition for Odoo. Import this JSON via the Railway CLI or dashboard and adjust as needed.",
+  "services": [
+    {
+      "name": "odoo",
+      "type": "web",
+      "source": {
+        "type": "docker",
+        "path": ".",
+        "dockerfile": "Dockerfile"
+      },
+      "env": {
+        "ODOO_HTTP_PORT": "8069",
+        "DB_NAME": "aatco"
+      },
+      "healthcheck": {
+        "path": "/web/health",
+        "timeout": 180,
+        "gracePeriod": 60
+      }
+    }
+  ],
+  "plugins": [
+    {
+      "type": "postgresql",
+      "name": "odoo-postgres"
+    }
+  ]
+}

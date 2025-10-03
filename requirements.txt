@@ -1,0 +1,2 @@
+# Add extra Python dependencies required by your custom modules.
+# Leave this file empty if no additional packages are required beyond the base Odoo image.

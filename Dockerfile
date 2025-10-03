@@ -8,6 +8,18 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gettext-base && \
     rm -rf /var/lib/apt/lists/*
 
+# Install gosu (used to step down to the odoo user when running the app directly)
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates wget gnupg2 dirmngr; \
+    dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
+    gosuVersion="1.14"; \
+    wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/${gosuVersion}/gosu-${dpkgArch}"; \
+    chmod +x /usr/local/bin/gosu; \
+    # verify gosu works
+    /usr/local/bin/gosu --version || true; \
+    rm -rf /var/lib/apt/lists/*;
+
 # Install any extra Python dependencies here by populating requirements.txt
 # This file can remain empty if no extra packages are needed.
 COPY requirements.txt /tmp/requirements.txt

@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# Debug: Show what Railway environment variables we received
+echo "DEBUG: Railway Environment Variables:"
+echo "  PGHOST = ${PGHOST:-<not set>}"
+echo "  PGPORT = ${PGPORT:-<not set>}"
+echo "  PGUSER = ${PGUSER:-<not set>}"
+echo "  PGDATABASE = ${PGDATABASE:-<not set>}"
+echo "  PORT = ${PORT:-<not set>}"
+
 # Default environment fallbacks (Railway exposes PG* variables when using Postgres plugin)
 # Railway provides: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
 export DB_HOST="${PGHOST:-${DB_HOST:-localhost}}"
@@ -8,6 +16,12 @@ export DB_PORT="${PGPORT:-${DB_PORT:-5432}}"
 export DB_USER="${PGUSER:-${DB_USER:-odoo}}"
 export DB_PASSWORD="${PGPASSWORD:-${DB_PASSWORD:-odoo}}"
 export DB_NAME="${PGDATABASE:-${DB_NAME:-odoo}}"
+
+echo "DEBUG: Final Database Configuration:"
+echo "  DB_HOST = $DB_HOST"
+echo "  DB_PORT = $DB_PORT" 
+echo "  DB_USER = $DB_USER"
+echo "  DB_NAME = $DB_NAME"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-change_me}" # STRONG password recommended
 export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
 export ODOO_HTTP_PORT="${PORT:-${ODOO_HTTP_PORT:-8069}}"

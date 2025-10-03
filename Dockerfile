@@ -11,7 +11,7 @@ RUN apt-get update && \
 # Install any extra Python dependencies here by populating requirements.txt
 # This file can remain empty if no extra packages are needed.
 COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install --no-cache-dir -r /tmp/requirements.txt && rm -f /tmp/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt && rm -f /tmp/requirements.txt
 
 # Copy custom addons and configuration template
 COPY addons /mnt/extra-addons

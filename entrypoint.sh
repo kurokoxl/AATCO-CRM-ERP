@@ -61,5 +61,9 @@ mkdir -p /var/lib/odoo
 chown -R odoo:odoo /var/lib/odoo
 
 # Finally run Odoo with any provided arguments
+# Railway uses 'postgres' user by default, which Odoo considers risky
+# Override this by setting ODOO_SKIP_PG_USER_CHECK=1
+export ODOO_SKIP_PG_USER_CHECK=1
+
 # Use the original odoo entrypoint from the base image
 exec /entrypoint.sh "$@"

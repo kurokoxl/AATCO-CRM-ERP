@@ -30,19 +30,6 @@ COPY addons /mnt/extra-addons
 COPY odoo.conf.template /etc/odoo/odoo.conf.template
 COPY entrypoint.sh /usr/local/bin/odoo-entrypoint.sh
 
-# Copy Python bypass script that wraps Odoo to skip postgres user check
-COPY odoo_bypass.py /usr/local/bin/odoo_bypass.py
-RUN chmod +x /usr/local/bin/odoo_bypass.py
-
-# Patch Odoo's postgres check directly in the source (belt-and-suspenders approach)
-# Railway's Postgres uses 'postgres' superuser - we need to bypass Odoo's security check
-RUN python3 -c "import re; \
-path = '/usr/lib/python3/dist-packages/odoo/service/server.py'; \
-content = open(path).read(); \
-content = re.sub(r'if.*db_user.*==.*postgres.*sys\.exit.*security risk[^)]*\)', '', content, flags=re.DOTALL); \
-open(path, 'w').write(content); \
-print('Patched Odoo postgres user check')"
-
 # Ensure correct ownership and permissions
 RUN chown -R odoo:odoo /mnt/extra-addons /etc/odoo && \
     chmod +x /usr/local/bin/odoo-entrypoint.sh
@@ -52,4 +39,5 @@ USER odoo
 ENV ODOO_RC=/etc/odoo/odoo.conf
 
 ENTRYPOINT ["/usr/local/bin/odoo-entrypoint.sh"]
+# Set the default command to run when starting the container
 CMD ["odoo"]

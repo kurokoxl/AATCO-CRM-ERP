@@ -79,9 +79,7 @@ chown -R odoo:odoo /var/lib/odoo
 echo "Starting Odoo (attempting to drop privileges if possible)..."
 
 # Build the base command we want to run
-# Use our bypass script that patches the postgres check before Odoo loads
-# Also patched in Dockerfile as backup (belt-and-suspenders)
-ODOO_CMD=(/usr/local/bin/odoo_bypass.py --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
+ODOO_CMD=(odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
 
 # Filter passed-in args: Dockerfile uses CMD ["odoo"] which becomes a
 # single positional argument 'odoo' here. If the only arg is 'odoo', drop it

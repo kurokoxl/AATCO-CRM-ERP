@@ -54,6 +54,7 @@ export TEMPLATE_DB_NAME="$DB_NAME"
 export TEMPLATE_ADMIN_PASSWORD="$ADMIN_PASSWORD"
 export TEMPLATE_DB_FILTER="$ODOO_DB_FILTER"
 export TEMPLATE_HTTP_PORT="$ODOO_HTTP_PORT"
+export TEMPLATE_DB_MAXCONN="${ODOO_DB_MAXCONN:-16}"
 
 # Toggle database manager visibility (list_db) via ODOO_LIST_DB env var.
 # Default stays False for production safety unless explicitly enabled.
@@ -72,6 +73,27 @@ if [[ -n "${ODOO_LIST_DB:-}" ]]; then
   esac
 else
   export TEMPLATE_LIST_DB="False"
+fi
+
+# Optional one-time initialization flag. When ODOO_INIT_DB is set to a
+# truthy value (1/true/yes/on) the entrypoint will run Odoo with
+# `-i base --stop-after-init` to initialize the database and then exit.
+# This is safer than leaving the DB manager open in production.
+if [[ -n "${ODOO_INIT_DB:-}" ]]; then
+  case "$(printf '%s' "$ODOO_INIT_DB" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on)
+      export DO_INIT_DB="True"
+      ;;
+    0|false|no|off)
+      export DO_INIT_DB="False"
+      ;;
+    *)
+      echo "[WARN] ODOO_INIT_DB has unexpected value '$ODOO_INIT_DB'; defaulting to False" >&2
+      export DO_INIT_DB="False"
+      ;;
+  esac
+else
+  export DO_INIT_DB="False"
 fi
 
 # shellcheck disable=SC2002
@@ -100,6 +122,14 @@ echo "Starting Odoo (attempting to drop privileges if possible)..."
 # Build the base command we want to run
 ODOO_CMD=(odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
 
+# Allow operators to supply additional Odoo CLI flags (e.g. --log-level=debug_sql)
+if [[ -n "${ODOO_EXTRA_ARGS:-}" ]]; then
+  echo "Applying extra Odoo arguments from ODOO_EXTRA_ARGS"
+  # shellcheck disable=SC2206
+  EXTRA_ARGS=( $ODOO_EXTRA_ARGS )
+  ODOO_CMD+=("${EXTRA_ARGS[@]}")
+fi
+
 # Filter passed-in args: Dockerfile uses CMD ["odoo"] which becomes a
 # single positional argument 'odoo' here. If the only arg is 'odoo', drop it
 # so we don't pass it to the odoo binary (which treats it as an unknown param).
@@ -119,12 +149,25 @@ if command -v gosu >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
   echo "gosu found, testing ability to switch to 'odoo' user..."
   if gosu odoo true >/dev/null 2>&1; then
     echo "gosu can switch to 'odoo' user — starting Odoo as 'odoo'"
+    # If operator requested a one-time DB initialization, run it and exit
+    if [[ "${DO_INIT_DB}" == "True" ]]; then
+      echo "[INFO] DO_INIT_DB is True — initializing database by running 'odoo -i base --stop-after-init' as 'odoo' user"
+      exec gosu odoo odoo --config="$CONFIG_FILE" --database="$DB_NAME" -i base --stop-after-init || exit $?
+    fi
     exec gosu odoo "${ODOO_CMD[@]}" "${FILTERED_ARGS[@]}"
   else
     echo "[WARN] gosu is present but cannot switch to 'odoo' in this runtime. Falling back to direct start."
   fi
 else
   echo "gosu not present or not running as root; starting Odoo with current user"
+fi
+
+# If operator requested a one-time DB initialization and we couldn't use gosu,
+# run the initialization as the current user and exit.
+if [[ "${DO_INIT_DB}" == "True" ]]; then
+  echo "[INFO] DO_INIT_DB is True — initializing database by running 'odoo -i base --stop-after-init' as current user"
+  odoo --config="$CONFIG_FILE" --database="$DB_NAME" -i base --stop-after-init || exit $?
+  exit 0
 fi
 
 # Final fallback — start Odoo directly (may run as non-root or root depending on runtime)

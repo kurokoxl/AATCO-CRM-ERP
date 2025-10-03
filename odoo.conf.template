@@ -13,6 +13,7 @@ limit_time_real = 1200
 limit_memory_soft = 2147483648
 limit_memory_hard = 2684354560
 http_port = ${TEMPLATE_HTTP_PORT}
+db_maxconn = ${TEMPLATE_DB_MAXCONN}
 addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
 logfile = False
 logrotate = False

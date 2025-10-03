@@ -1,0 +1,23 @@
+# Ignore everything outside this deployment folder
+../../*
+
+# Keep only what we need in this folder
+!Dockerfile
+!entrypoint.sh
+!odoo.conf.template
+!requirements.txt
+!railway.json
+!addons/
+!scripts/
+!README.md
+!*.py
+
+# Ignore unnecessary files
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.vscode/
+*.log
+*.sql
+*.dump

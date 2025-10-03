@@ -2,14 +2,15 @@
 set -euo pipefail
 
 # Default environment fallbacks (Railway exposes PG* variables when using Postgres plugin)
-export DB_HOST="${DB_HOST:-${PGHOST:-postgres}}"
-export DB_PORT="${DB_PORT:-${PGPORT:-5432}}"
-export DB_USER="${DB_USER:-${PGUSER:-odoo}}"
-export DB_PASSWORD="${DB_PASSWORD:-${PGPASSWORD:-odoo}}"
-export DB_NAME="${DB_NAME:-${PGDATABASE:-odoo}}"
+# Railway provides: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
+export DB_HOST="${PGHOST:-${DB_HOST:-localhost}}"
+export DB_PORT="${PGPORT:-${DB_PORT:-5432}}"
+export DB_USER="${PGUSER:-${DB_USER:-odoo}}"
+export DB_PASSWORD="${PGPASSWORD:-${DB_PASSWORD:-odoo}}"
+export DB_NAME="${PGDATABASE:-${DB_NAME:-odoo}}"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-change_me}" # STRONG password recommended
 export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
-export ODOO_HTTP_PORT="${ODOO_HTTP_PORT:-${PORT:-8069}}"
+export ODOO_HTTP_PORT="${PORT:-${ODOO_HTTP_PORT:-8069}}"
 
 CONFIG_TEMPLATE=${ODOO_CONFIG_TEMPLATE:-/etc/odoo/odoo.conf.template}
 CONFIG_FILE=${ODOO_CONFIG_PATH:-/etc/odoo/odoo.conf}

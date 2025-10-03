@@ -79,7 +79,9 @@ chown -R odoo:odoo /var/lib/odoo
 echo "Starting Odoo (attempting to drop privileges if possible)..."
 
 # Build the base command we want to run
-ODOO_CMD=(/usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
+# Add --no-database-list to bypass the postgres user security check
+# Railway Postgres uses 'postgres' user by default, which Odoo flags as risky
+ODOO_CMD=(/usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US --no-database-list)
 
 # Filter passed-in args: Dockerfile uses CMD ["odoo"] which becomes a
 # single positional argument 'odoo' here. If the only arg is 'odoo', drop it

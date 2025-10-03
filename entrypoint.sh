@@ -81,12 +81,26 @@ echo "Starting Odoo (attempting to drop privileges if possible)..."
 # Build the base command we want to run
 ODOO_CMD=(/usr/bin/odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
 
+# Filter passed-in args: Dockerfile uses CMD ["odoo"] which becomes a
+# single positional argument 'odoo' here. If the only arg is 'odoo', drop it
+# so we don't pass it to the odoo binary (which treats it as an unknown param).
+FILTERED_ARGS=()
+if [ "$#" -gt 0 ]; then
+  # If exactly one argument and it's the literal 'odoo', ignore it
+  if [ "$#" -eq 1 ] && [ "$1" = "odoo" ]; then
+    FILTERED_ARGS=()
+  else
+    # Otherwise preserve whatever args were passed
+    FILTERED_ARGS=("$@")
+  fi
+fi
+
 # If we're root and gosu is installed, try to use it. Test first to avoid crashes.
 if command -v gosu >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
   echo "gosu found, testing ability to switch to 'odoo' user..."
   if gosu odoo true >/dev/null 2>&1; then
     echo "gosu can switch to 'odoo' user — starting Odoo as 'odoo'"
-    exec gosu odoo "${ODOO_CMD[@]}" "$@"
+    exec gosu odoo "${ODOO_CMD[@]}" "${FILTERED_ARGS[@]}"
   else
     echo "[WARN] gosu is present but cannot switch to 'odoo' in this runtime. Falling back to direct start."
   fi
@@ -95,4 +109,4 @@ else
 fi
 
 # Final fallback — start Odoo directly (may run as non-root or root depending on runtime)
-exec "${ODOO_CMD[@]}" "$@"
+exec "${ODOO_CMD[@]}" "${FILTERED_ARGS[@]}"

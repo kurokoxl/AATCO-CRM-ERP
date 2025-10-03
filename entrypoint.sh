@@ -46,4 +46,5 @@ mkdir -p /var/lib/odoo
 chown -R odoo:odoo /var/lib/odoo
 
 # Finally run Odoo with any provided arguments
-exec /usr/bin/odoo "$@"
+# Use the original odoo entrypoint from the base image
+exec /entrypoint.sh "$@"

@@ -186,9 +186,11 @@ export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
 # container-level PORT (e.g. 8080) for certain runtimes; using that would cause
 # a mismatch with the router and lead to connection timeouts. For reliability
 # bind Odoo to 8069 unless you intentionally want a different internal port.
-export ODOO_HTTP_PORT="8069"
+export ODOO_HTTP_PORT="${ODOO_HTTP_PORT:-8069}"
+export ODOO_GEVENT_PORT="${ODOO_GEVENT_PORT:-8072}"
 
 echo "DEBUG: Using HTTP PORT = $ODOO_HTTP_PORT"
+echo "DEBUG: Using Evented PORT = $ODOO_GEVENT_PORT"
 
 CONFIG_TEMPLATE=${ODOO_CONFIG_TEMPLATE:-/etc/odoo/odoo.conf.template}
 CONFIG_FILE=${ODOO_CONFIG_PATH:-/etc/odoo/odoo.conf}
@@ -211,6 +213,7 @@ export TEMPLATE_ADMIN_PASSWORD="$ADMIN_PASSWORD"
 export TEMPLATE_DB_FILTER="$ODOO_DB_FILTER"
 export TEMPLATE_HTTP_PORT="$ODOO_HTTP_PORT"
 export TEMPLATE_DB_MAXCONN="${ODOO_DB_MAXCONN:-16}"
+export TEMPLATE_GEVENT_PORT="$ODOO_GEVENT_PORT"
 
 # Toggle database manager visibility (list_db) via ODOO_LIST_DB env var.
 # Default stays False for production safety unless explicitly enabled.
@@ -261,13 +264,28 @@ if [[ "$ADMIN_PASSWORD" == "change_me" ]]; then
   echo "[WARN] ADMIN_PASSWORD is still set to the default value. Please override it with a strong secret." >&2
 fi
 
-# Ensure filestore directory exists for mounted volumes
-mkdir -p /var/lib/odoo
-chown -R odoo:odoo /var/lib/odoo
+# Ensure filestore/data directory exists (and allow overriding path)
+DATA_DIR="${ODOO_DATA_DIR:-/var/lib/odoo}"
+mkdir -p "$DATA_DIR" "$DATA_DIR/filestore"
+chown -R odoo:odoo "$DATA_DIR"
+export TEMPLATE_DATA_DIR="$DATA_DIR"
 
-# Check if database needs initialization
-# A database is "uninitialized" if it exists but has no Odoo tables/modules
-if [[ "$DO_INIT_DB" == "True" || ! -f "/var/lib/odoo/.${DB_NAME}_initialized" ]]; then
+FILESTORE_PATH="$DATA_DIR"
+if grep -qs " ${FILESTORE_PATH%/} " /proc/mounts; then
+  echo "[INFO] Filestore path ${FILESTORE_PATH} is mounted on a persistent volume."
+else
+  echo "[WARN] Filestore path ${FILESTORE_PATH} is not mounted on a dedicated volume; uploaded files will be lost on redeploy. Configure a Railway volume at this path for persistence." >&2
+fi
+
+# DISABLED: Auto-initialization removed to allow manual database creation via Odoo UI
+# User can create databases manually at /web/database/manager
+# 
+# To re-enable auto-initialization, set environment variable:
+#   ODOO_AUTO_INIT_DB=true
+#
+# Original auto-init logic:
+if [[ "${ODOO_AUTO_INIT_DB:-false}" == "true" ]]; then
+  echo "[INFO] Auto-initialization enabled via ODOO_AUTO_INIT_DB=true"
   echo "[INFO] Checking if database '$DB_NAME' needs initialization..."
   
   # Check if base module is installed
@@ -290,6 +308,9 @@ if [[ "$DO_INIT_DB" == "True" || ! -f "/var/lib/odoo/.${DB_NAME}_initialized" ]]
   else
     echo "[INFO] Database '$DB_NAME' is already initialized (found ir_module_module table)."
   fi
+else
+  echo "[INFO] Auto-initialization disabled. Create databases manually at /web/database/manager"
+  echo "[INFO] To enable auto-init, set ODOO_AUTO_INIT_DB=true in Railway environment variables"
 fi
 
 # Finally run Odoo with any provided arguments

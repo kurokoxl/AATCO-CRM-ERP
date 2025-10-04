@@ -9,12 +9,12 @@ RuntimeError: Couldn't bind the websocket. Is the connection opened on the event
 ```
 
 **Root Cause**: 
-Odoo was trying to start a separate longpolling/gevent server on port 8072, but Railway's architecture doesn't support multiple ports per service. Railway's proxy handles WebSocket connections at the infrastructure level.
+`gevent_port` was forced to `0`, leaving Odoo without an evented worker to accept WebSocket handshakes. When the UI tried to connect to `/websocket`, the HTTP worker could not bind to the disabled evented port, raising runtime errors.
 
 **Solution**:
-- Added `gevent_port = 0` to `odoo.conf.template` to disable Odoo's built-in longpolling server
-- Railway's proxy automatically handles WebSocket upgrades for HTTP requests
-- Commented out WebSocket-specific settings that are now handled by Railway
+- Restored the evented service by setting `gevent_port = ${TEMPLATE_GEVENT_PORT}` (defaults to 8072)
+- Surface the port configuration through environment variable `ODOO_GEVENT_PORT`
+- Documented that Railway handles the single external port while Odoo keeps its internal gevent worker for WebSocket traffic
 
 **Expected Result**: No more WebSocket binding errors in logs
 
@@ -32,17 +32,9 @@ FileNotFoundError: [Errno 2] No such file or directory: '/var/lib/odoo/filestore
 - The AATCO database filestore was created but not persisted
 
 **Solution**:
-- Added `VOLUME ["/var/lib/odoo"]` declaration in Dockerfile
-- Configured persistent volume in `railway.json`:
-  ```json
-  "volumes": [
-    {
-      "name": "odoo-filestore",
-      "mountPath": "/var/lib/odoo"
-    }
-  ]
-  ```
-- Ensured proper directory creation and permissions in Dockerfile
+- Ensure `/var/lib/odoo` hierarchy is created with correct ownership during build/startup
+- Entry point now warns when the filestore path is not mounted on a persistent Railway volume
+- Documentation updated with explicit steps to add a Railway volume for `/var/lib/odoo`
 
 **Expected Result**: 
 - Uploaded files will persist across container restarts
@@ -74,17 +66,17 @@ FileNotFoundError: [Errno 2] No such file or directory: '/var/lib/odoo/filestore
 
 ## Files Modified
 
-1. **odoo.conf.template**
-   - Added `gevent_port = 0` to disable longpolling server
-   - Commented out WebSocket settings (handled by Railway)
+1. **entrypoint.sh**
+   - Exposes `ODOO_GEVENT_PORT` (default 8072) and injects it into generated config
+   - Allows overriding the data directory via `ODOO_DATA_DIR`
+   - Emits a warning when `/var/lib/odoo` is not backed by a Railway volume
 
-2. **Dockerfile**
-   - Added `VOLUME ["/var/lib/odoo"]` for persistent storage
-   - Created `/var/lib/odoo/filestore` directory with proper permissions
+2. **odoo.conf.template**
+   - Uses templated `gevent_port` instead of disabling the evented worker
+   - Applies templated `dbfilter`, `list_db`, and `data_dir` values from the entry point
 
-3. **railway.json**
-   - Added volume configuration for filestore persistence
-   - Updated health check path and timings
+3. **Dockerfile**
+   - Ensures `/var/lib/odoo/filestore` exists with proper ownership during image build
 
 ---
 
@@ -142,8 +134,8 @@ After deployment, verify:
 
 ### If WebSocket errors still appear:
 - Check Railway environment variables
-- Verify `gevent_port = 0` is in deployed config
-- Check Railway proxy logs
+- Verify `gevent_port = 8072` (or your custom port) is in the deployed config
+- Make sure nothing else inside the container is bound to that port
 
 ### If filestore errors continue:
 - Verify volume is mounted: `ls -la /var/lib/odoo` in Railway shell

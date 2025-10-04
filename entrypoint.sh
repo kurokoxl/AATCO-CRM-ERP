@@ -130,7 +130,6 @@ SQL
   psql -v ON_ERROR_STOP=1 \
     -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
     -c "GRANT CONNECT ON DATABASE \"${APP_DB_NAME_SQL}\" TO \"${APP_DB_USER_SQL}\";"
-SQL
 
   # Step 4: Grant schema and object privileges
   echo "[INFO] Setting up permissions on database '$DB_NAME'..."

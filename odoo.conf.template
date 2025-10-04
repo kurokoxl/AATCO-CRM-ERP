@@ -11,8 +11,8 @@ db_sslmode = prefer
 
 # Security
 admin_passwd = ${TEMPLATE_ADMIN_PASSWORD}
-dbfilter = ${TEMPLATE_DB_FILTER}
-list_db = ${TEMPLATE_LIST_DB}
+dbfilter = 
+list_db = True
 
 # Server Configuration
 http_enable = True
@@ -20,8 +20,9 @@ http_port = ${TEMPLATE_HTTP_PORT}
 http_interface = 0.0.0.0
 proxy_mode = True
 
-# Evented (WebSocket/longpolling) service
-gevent_port = ${TEMPLATE_GEVENT_PORT}
+# Disable longpolling/gevent mode (not compatible with Railway's proxy)
+# Railway handles WebSocket connections at the proxy level
+gevent_port = 0
 
 # Performance & Resource Limits (Railway Starter Plan Optimized)
 # For Railway's typical 512MB-1GB containers
@@ -42,7 +43,7 @@ syslog = False
 
 # Additional paths
 addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
-data_dir = ${TEMPLATE_DATA_DIR}
+data_dir = /var/lib/odoo
 
 # Internationalization
 without_demo = all

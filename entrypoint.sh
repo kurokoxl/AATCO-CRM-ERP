@@ -87,48 +87,81 @@ if [[ "$DB_USER" == "postgres" && "$AUTO_PROVISION" == "True" ]]; then
   APP_DB_PASSWORD_SQL="$(sql_escape_literal "$APP_DB_PASSWORD")"
   APP_DB_NAME_SQL="$(sql_escape_literal "$DB_NAME")"
 
+  # Step 1: Create or update the application role (can be done in DO block)
+  echo "[INFO] Creating/updating application role..."
   psql -v ON_ERROR_STOP=1 \
     -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" <<SQL
 DO \$do\$
 DECLARE
     app_user text := '${APP_DB_USER_SQL}';
     app_password text := '${APP_DB_PASSWORD_SQL}';
-    app_db text := '${APP_DB_NAME_SQL}';
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app_user) THEN
-        EXECUTE format('CREATE ROLE %I WITH LOGIN PASSWORD %L', app_user, app_password);
+        EXECUTE format('CREATE ROLE %I WITH LOGIN PASSWORD %L CREATEDB', app_user, app_password);
+        RAISE NOTICE 'Created new role: %', app_user;
     ELSE
-        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', app_user, app_password);
+        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L CREATEDB', app_user, app_password);
+        RAISE NOTICE 'Updated existing role: %', app_user;
     END IF;
-    EXECUTE format('ALTER ROLE %I WITH CREATEDB', app_user);
-
-    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = app_db) THEN
-        EXECUTE format('CREATE DATABASE %I OWNER %I TEMPLATE template0', app_db, app_user);
-    ELSE
-        EXECUTE format('ALTER DATABASE %I OWNER TO %I', app_db, app_user);
-    END IF;
-
-    EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', app_db, app_user);
 END
 \$do\$;
 SQL
 
+  # Step 2: Check if database exists and handle accordingly (outside DO block)
+  echo "[INFO] Checking database '$DB_NAME'..."
+  DB_EXISTS=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" -tAc "SELECT 1 FROM pg_database WHERE datname='${APP_DB_NAME_SQL}'")
+  
+  if [[ "$DB_EXISTS" != "1" ]]; then
+    echo "[INFO] Database '$DB_NAME' does not exist. Creating it..."
+    psql -v ON_ERROR_STOP=1 \
+      -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
+      -c "CREATE DATABASE \"${APP_DB_NAME_SQL}\" OWNER \"${APP_DB_USER_SQL}\" TEMPLATE template0 ENCODING 'UTF8';"
+    echo "[INFO] Database '$DB_NAME' created successfully."
+  else
+    echo "[INFO] Database '$DB_NAME' already exists. Setting owner..."
+    psql -v ON_ERROR_STOP=1 \
+      -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
+      -c "ALTER DATABASE \"${APP_DB_NAME_SQL}\" OWNER TO \"${APP_DB_USER_SQL}\";"
+    echo "[INFO] Database owner updated."
+  fi
+
+  # Step 3: Grant connection privileges
+  echo "[INFO] Granting connection privileges..."
+  psql -v ON_ERROR_STOP=1 \
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
+    -c "GRANT CONNECT ON DATABASE \"${APP_DB_NAME_SQL}\" TO \"${APP_DB_USER_SQL}\";"
+SQL
+
+  # Step 4: Grant schema and object privileges
+  echo "[INFO] Setting up permissions on database '$DB_NAME'..."
   psql -v ON_ERROR_STOP=1 \
     -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<SQL
-DO \$do\$
-DECLARE
-    app_user text := '${APP_DB_USER_SQL}';
-BEGIN
-    EXECUTE format('GRANT USAGE, CREATE ON SCHEMA public TO %I', app_user);
-    EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO %I', app_user);
-    EXECUTE format('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO %I', app_user);
-    EXECUTE format('GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO %I', app_user);
-    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO %I', app_user, app_user);
-    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO %I', app_user, app_user);
-    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO %I', app_user, app_user);
-END
-\$do\$;
+-- Grant schema privileges
+GRANT USAGE, CREATE ON SCHEMA public TO "${APP_DB_USER_SQL}";
+
+-- Grant privileges on existing objects
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${APP_DB_USER_SQL}";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${APP_DB_USER_SQL}";
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO "${APP_DB_USER_SQL}";
+
+-- Set default privileges for future objects created by the app user
+ALTER DEFAULT PRIVILEGES FOR ROLE "${APP_DB_USER_SQL}" IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON TABLES TO "${APP_DB_USER_SQL}";
+ALTER DEFAULT PRIVILEGES FOR ROLE "${APP_DB_USER_SQL}" IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON SEQUENCES TO "${APP_DB_USER_SQL}";
+ALTER DEFAULT PRIVILEGES FOR ROLE "${APP_DB_USER_SQL}" IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON FUNCTIONS TO "${APP_DB_USER_SQL}";
+
+-- Also grant default privileges for objects created by postgres (for initial setup)
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON TABLES TO "${APP_DB_USER_SQL}";
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON SEQUENCES TO "${APP_DB_USER_SQL}";
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public 
+  GRANT ALL PRIVILEGES ON FUNCTIONS TO "${APP_DB_USER_SQL}";
 SQL
+
+  echo "[INFO] Permissions configured successfully."
 
   DB_USER="$APP_DB_USER"
   DB_PASSWORD="$APP_DB_PASSWORD"

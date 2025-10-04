@@ -46,7 +46,12 @@ This directory contains everything required to build and deploy your customised 
    | `ADMIN_PASSWORD` | Master password used by `/web/database/manager`. Generate a long random value and keep it secret. |
    | `DB_NAME` | Primary database name to load. Set to `AATCO` to match your local instance. |
    | `ODOO_HTTP_PORT` | Leave as `8069` unless you have a custom reverse proxy. |
+   | `ODOO_APP_DB_USER` | Application database role created automatically when Railway only exposes the `postgres` superuser. Defaults to `odoo_user`. |
+   | `ODOO_APP_DB_PASSWORD` | Strong password for `ODOO_APP_DB_USER`. Store it as an environment variable or secret in Railway. |
    | `ODOO_DB_FILTER` *(optional)* | Regex matching databases served by this instance. Defaults to the value of `DB_NAME`. |
+   | `ODOO_AUTO_PROVISION_DB_USER` *(optional)* | Set to `false` if you prefer to manage database roles manually. |
+
+   With these variables in place the Docker entrypoint ensures a dedicated database role exists, grants it ownership of `DB_NAME`, and rewrites the generated `odoo.conf` to use that safer account instead of `postgres`.
 
 6. **Configure domains (optional)** by adding a public domain entry in Railway. Railway automatically provisions SSL certificates.
 

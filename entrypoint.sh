@@ -22,6 +22,109 @@ echo "  DB_HOST = $DB_HOST"
 echo "  DB_PORT = $DB_PORT" 
 echo "  DB_USER = $DB_USER"
 echo "  DB_NAME = $DB_NAME"
+
+AUTO_PROVISION="True"
+if [[ -n "${ODOO_AUTO_PROVISION_DB_USER:-}" ]]; then
+  case "$(printf '%s' "$ODOO_AUTO_PROVISION_DB_USER" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on)
+      AUTO_PROVISION="True"
+      ;;
+    0|false|no|off)
+      AUTO_PROVISION="False"
+      ;;
+    *)
+      echo "[WARN] ODOO_AUTO_PROVISION_DB_USER has unexpected value '$ODOO_AUTO_PROVISION_DB_USER'; defaulting to True" >&2
+      AUTO_PROVISION="True"
+      ;;
+  esac
+fi
+
+if [[ "$DB_USER" == "postgres" && "$AUTO_PROVISION" == "True" ]]; then
+  APP_DB_USER="${ODOO_APP_DB_USER:-odoo_user}"
+
+  APP_DB_PASSWORD="${ODOO_APP_DB_PASSWORD:-}"
+  if [[ -z "$APP_DB_PASSWORD" && -n "${ODOO_APP_DB_PASSWORD_FILE:-}" && -f "$ODOO_APP_DB_PASSWORD_FILE" ]]; then
+    APP_DB_PASSWORD="$(<"$ODOO_APP_DB_PASSWORD_FILE")"
+  fi
+  if [[ -z "$APP_DB_PASSWORD" && -n "${DB_PASSWORD:-}" ]]; then
+    echo "[WARN] ODOO_APP_DB_PASSWORD not provided; reusing DB_PASSWORD for application role." >&2
+    APP_DB_PASSWORD="$DB_PASSWORD"
+  fi
+  if [[ -z "$APP_DB_PASSWORD" && -n "${PGPASSWORD:-}" ]]; then
+    echo "[WARN] Falling back to Railway PGPASSWORD for application role. Set ODOO_APP_DB_PASSWORD to override." >&2
+    APP_DB_PASSWORD="$PGPASSWORD"
+  fi
+  if [[ -z "$APP_DB_PASSWORD" ]]; then
+    echo "[ERROR] Unable to determine password for application database role. Set ODOO_APP_DB_PASSWORD or provide ODOO_APP_DB_PASSWORD_FILE." >&2
+    exit 1
+  fi
+
+  if [[ -z "${PGPASSWORD:-}" ]]; then
+    if [[ -n "$DB_PASSWORD" ]]; then
+      export PGPASSWORD="$DB_PASSWORD"
+    else
+      echo "[ERROR] PGPASSWORD is not set; cannot manage Postgres roles. Ensure Railway exposes the superuser password." >&2
+      exit 1
+    fi
+  fi
+
+  echo "[INFO] Provisioning dedicated application role '$APP_DB_USER' for database '$DB_NAME'."
+
+  psql -v ON_ERROR_STOP=1 \
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
+    -v app_user="$APP_DB_USER" -v app_password="$APP_DB_PASSWORD" -v app_db="$DB_NAME" <<'SQL'
+DO $do$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') THEN
+        EXECUTE format('CREATE ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password');
+    ELSE
+        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password');
+    END IF;
+    EXECUTE format('ALTER ROLE %I WITH CREATEDB', :'app_user');
+END
+$do$;
+
+DO $do$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'app_db') THEN
+        EXECUTE format('CREATE DATABASE %I OWNER %I TEMPLATE template0', :'app_db', :'app_user');
+    ELSE
+        EXECUTE format('ALTER DATABASE %I OWNER TO %I', :'app_db', :'app_user');
+    END IF;
+END
+$do$;
+
+GRANT CONNECT ON DATABASE :"app_db" TO :"app_user";
+SQL
+
+  psql -v ON_ERROR_STOP=1 \
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+    -v app_user="$APP_DB_USER" <<'SQL'
+GRANT USAGE, CREATE ON SCHEMA public TO :"app_user";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO :"app_user";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO :"app_user";
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO :"app_user";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO :"app_user";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO :"app_user";
+ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO :"app_user";
+SQL
+
+  DB_USER="$APP_DB_USER"
+  DB_PASSWORD="$APP_DB_PASSWORD"
+  export DB_USER DB_PASSWORD
+
+  export PGUSER="$APP_DB_USER"
+  export PGPASSWORD="$APP_DB_PASSWORD"
+
+  echo "[INFO] Application role '$APP_DB_USER' is ready. Continuing with non-superuser credentials."
+fi
+
+echo "DEBUG: Final Database Configuration After Provisioning:"
+echo "  DB_HOST = $DB_HOST"
+echo "  DB_PORT = $DB_PORT"
+echo "  DB_USER = $DB_USER"
+echo "  DB_NAME = $DB_NAME"
+
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-change_me}" # STRONG password recommended
 export ODOO_DB_FILTER="${ODOO_DB_FILTER:-^${DB_NAME}$}"
 # Railway's router forwards traffic to the service's targetPort (set in Railway).

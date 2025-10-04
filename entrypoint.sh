@@ -265,6 +265,33 @@ fi
 mkdir -p /var/lib/odoo
 chown -R odoo:odoo /var/lib/odoo
 
+# Check if database needs initialization
+# A database is "uninitialized" if it exists but has no Odoo tables/modules
+if [[ "$DO_INIT_DB" == "True" || ! -f "/var/lib/odoo/.${DB_NAME}_initialized" ]]; then
+  echo "[INFO] Checking if database '$DB_NAME' needs initialization..."
+  
+  # Check if base module is installed
+  DB_INITIALIZED=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='ir_module_module';" 2>/dev/null || echo "0")
+  
+  if [[ "$DB_INITIALIZED" == "0" ]]; then
+    echo "[INFO] Database '$DB_NAME' is not initialized. Initializing with base module..."
+    echo "[INFO] Running: odoo -d $DB_NAME -i base --stop-after-init --config=$CONFIG_FILE"
+    
+    # Initialize database with base module
+    if odoo -d "$DB_NAME" -i base --stop-after-init --config="$CONFIG_FILE"; then
+      echo "[INFO] Database initialization completed successfully."
+      # Mark database as initialized
+      touch "/var/lib/odoo/.${DB_NAME}_initialized"
+    else
+      echo "[ERROR] Database initialization failed!" >&2
+      exit 1
+    fi
+  else
+    echo "[INFO] Database '$DB_NAME' is already initialized (found ir_module_module table)."
+  fi
+fi
+
 # Finally run Odoo with any provided arguments
 # Railway uses 'postgres' user by default, which Odoo considers risky.
 # We previously attempted to always switch to the 'odoo' user with gosu,

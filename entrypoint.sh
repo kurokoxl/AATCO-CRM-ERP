@@ -9,6 +9,13 @@ echo "  PGUSER = ${PGUSER:-<not set>}"
 echo "  PGDATABASE = ${PGDATABASE:-<not set>}"
 echo "  PORT = ${PORT:-<not set>}"
 
+if [[ -z "${LANG:-}" ]]; then
+  export LANG="C.UTF-8"
+fi
+if [[ -z "${LC_ALL:-}" ]]; then
+  export LC_ALL="C.UTF-8"
+fi
+
 # Default environment fallbacks (Railway exposes PG* variables when using Postgres plugin)
 # Railway provides: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE
 export DB_HOST="${PGHOST:-${DB_HOST:-localhost}}"
@@ -38,6 +45,12 @@ if [[ -n "${ODOO_AUTO_PROVISION_DB_USER:-}" ]]; then
       ;;
   esac
 fi
+
+sql_escape_literal() {
+  local raw="$1"
+  raw=${raw//\'/\'\'}
+  printf '%s' "$raw"
+}
 
 if [[ "$DB_USER" == "postgres" && "$AUTO_PROVISION" == "True" ]]; then
   APP_DB_USER="${ODOO_APP_DB_USER:-odoo_user}"
@@ -70,43 +83,51 @@ if [[ "$DB_USER" == "postgres" && "$AUTO_PROVISION" == "True" ]]; then
 
   echo "[INFO] Provisioning dedicated application role '$APP_DB_USER' for database '$DB_NAME'."
 
+  APP_DB_USER_SQL="$(sql_escape_literal "$APP_DB_USER")"
+  APP_DB_PASSWORD_SQL="$(sql_escape_literal "$APP_DB_PASSWORD")"
+  APP_DB_NAME_SQL="$(sql_escape_literal "$DB_NAME")"
+
   psql -v ON_ERROR_STOP=1 \
-    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" \
-    -v app_user="$APP_DB_USER" -v app_password="$APP_DB_PASSWORD" -v app_db="$DB_NAME" <<'SQL'
-DO $do$
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "${ODOO_SUPERUSER_DATABASE:-postgres}" <<SQL
+DO \$do\$
+DECLARE
+    app_user text := '${APP_DB_USER_SQL}';
+    app_password text := '${APP_DB_PASSWORD_SQL}';
+    app_db text := '${APP_DB_NAME_SQL}';
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') THEN
-        EXECUTE format('CREATE ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password');
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = app_user) THEN
+        EXECUTE format('CREATE ROLE %I WITH LOGIN PASSWORD %L', app_user, app_password);
     ELSE
-        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password');
+        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', app_user, app_password);
     END IF;
-    EXECUTE format('ALTER ROLE %I WITH CREATEDB', :'app_user');
-END
-$do$;
+    EXECUTE format('ALTER ROLE %I WITH CREATEDB', app_user);
 
-DO $do$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'app_db') THEN
-        EXECUTE format('CREATE DATABASE %I OWNER %I TEMPLATE template0', :'app_db', :'app_user');
+    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = app_db) THEN
+        EXECUTE format('CREATE DATABASE %I OWNER %I TEMPLATE template0', app_db, app_user);
     ELSE
-        EXECUTE format('ALTER DATABASE %I OWNER TO %I', :'app_db', :'app_user');
+        EXECUTE format('ALTER DATABASE %I OWNER TO %I', app_db, app_user);
     END IF;
-END
-$do$;
 
-GRANT CONNECT ON DATABASE :"app_db" TO :"app_user";
+    EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', app_db, app_user);
+END
+\$do\$;
 SQL
 
   psql -v ON_ERROR_STOP=1 \
-    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-    -v app_user="$APP_DB_USER" <<'SQL'
-GRANT USAGE, CREATE ON SCHEMA public TO :"app_user";
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO :"app_user";
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO :"app_user";
-GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO :"app_user";
-ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO :"app_user";
-ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO :"app_user";
-ALTER DEFAULT PRIVILEGES FOR ROLE :"app_user" IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO :"app_user";
+    -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" <<SQL
+DO \$do\$
+DECLARE
+    app_user text := '${APP_DB_USER_SQL}';
+BEGIN
+    EXECUTE format('GRANT USAGE, CREATE ON SCHEMA public TO %I', app_user);
+    EXECUTE format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO %I', app_user);
+    EXECUTE format('GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO %I', app_user);
+    EXECUTE format('GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO %I', app_user);
+    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO %I', app_user, app_user);
+    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO %I', app_user, app_user);
+    EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT ALL PRIVILEGES ON FUNCTIONS TO %I', app_user, app_user);
+END
+\$do\$;
 SQL
 
   DB_USER="$APP_DB_USER"

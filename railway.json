@@ -1,0 +1,29 @@
+{
+	"services": [
+		{
+			"name": "odoo",
+			"type": "web",
+			"source": {
+				"type": "docker",
+				"path": ".",
+				"dockerfile": "Dockerfile"
+			},
+			"env": {
+				"ODOO_HTTP_PORT": "8069",
+				"DB_NAME": "aatco",
+				"ODOO_APP_DB_USER": "odoo_user"
+			},
+			"healthcheck": {
+				"path": "/web/health",
+				"timeout": 180,
+				"gracePeriod": 60
+			}
+		}
+	],
+	"plugins": [
+		{
+			"type": "postgresql",
+			"name": "odoo-postgres"
+		}
+	]
+}

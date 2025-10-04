@@ -40,8 +40,8 @@ RUN chown -R odoo:odoo /mnt/extra-addons /etc/odoo && \
 USER odoo
 ENV ODOO_RC=/etc/odoo/odoo.conf
 
-# Define volume for persistent data
-VOLUME ["/var/lib/odoo"]
+# Note: Railway volumes are configured in railway.json, not in Dockerfile
+# The VOLUME keyword is banned by Railway - use Railway's native volumes instead
 
 ENTRYPOINT ["/usr/local/bin/odoo-entrypoint.sh"]
 # Set the default command to run when starting the container

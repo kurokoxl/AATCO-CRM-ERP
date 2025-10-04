@@ -19,12 +19,6 @@
 				"ODOO_DB_FILTER": "^railway$",
 				"ADMIN_PASSWORD": "CHANGE_ME_TO_SECURE_PASSWORD"
 			},
-			"volumes": [
-				{
-					"name": "odoo-filestore",
-					"mountPath": "/var/lib/odoo"
-				}
-			],
 			"healthcheck": {
 				"path": "/web/database/selector",
 				"timeout": 180,

@@ -2,20 +2,18 @@
 {
     'name': 'Field Service Navigate',
     'version': '18.0.1.0.0',
-    'category': 'Services',
-    'summary': 'Navigate to partner locations via Google Maps',
+    'category': 'Field Service',
+    'summary': 'Add Navigate button to Field Service Orders',
     'description': """
         Field Service Navigate
         =======================
-        Adds a "Navigate" button to partner records that opens Google Maps
-        with directions from your current location to the partner's address.
-        
-        Works with standard Odoo contacts/partners - no additional modules required.
+        Adds a "Navigate" button to Field Service Orders that opens Google Maps
+        with directions from your current location to the order's location.
     """,
     'author': 'Custom',
-    'depends': ['base', 'contacts'],
+    'depends': ['fieldservice'],
     'data': [
-        'views/partner_views.xml',
+        'views/fsm_order_views.xml',
     ],
     'installable': True,
     'application': False,

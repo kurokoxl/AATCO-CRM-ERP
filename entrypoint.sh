@@ -276,7 +276,7 @@ chown -R odoo:odoo /var/lib/odoo
 echo "Starting Odoo (attempting to drop privileges if possible)..."
 
 # Build the base command we want to run
-ODOO_CMD=(odoo --config="$CONFIG_FILE" --database="$DB_NAME" --without-demo=all --load-language=en_US)
+ODOO_CMD=(odoo --config="$CONFIG_FILE")
 
 # Allow operators to supply additional Odoo CLI flags (e.g. --log-level=debug_sql)
 if [[ -n "${ODOO_EXTRA_ARGS:-}" ]]; then
@@ -305,32 +305,12 @@ if command -v gosu >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
   echo "gosu found, testing ability to switch to 'odoo' user..."
   if gosu odoo true >/dev/null 2>&1; then
     echo "gosu can switch to 'odoo' user — starting Odoo as 'odoo'"
-    # If operator requested a one-time DB initialization, run it first
-    if [[ "${DO_INIT_DB}" == "True" ]]; then
-      echo "[INFO] DO_INIT_DB is True — initializing database by running 'odoo -i base --stop-after-init' as 'odoo' user"
-      gosu odoo odoo --config="$CONFIG_FILE" --database="$DB_NAME" -i base --stop-after-init || {
-        echo "[ERROR] Database initialization failed!" >&2
-        exit 1
-      }
-      echo "[INFO] Database initialization complete. Starting Odoo server..."
-    fi
     exec gosu odoo "${ODOO_CMD[@]}" "${FILTERED_ARGS[@]}"
   else
     echo "[WARN] gosu is present but cannot switch to 'odoo' in this runtime. Falling back to direct start."
   fi
 else
   echo "gosu not present or not running as root; starting Odoo with current user"
-fi
-
-# If operator requested a one-time DB initialization and we couldn't use gosu,
-# run the initialization as the current user first, then continue.
-if [[ "${DO_INIT_DB}" == "True" ]]; then
-  echo "[INFO] DO_INIT_DB is True — initializing database by running 'odoo -i base --stop-after-init' as current user"
-  odoo --config="$CONFIG_FILE" --database="$DB_NAME" -i base --stop-after-init || {
-    echo "[ERROR] Database initialization failed!" >&2
-    exit 1
-  }
-  echo "[INFO] Database initialization complete. Starting Odoo server..."
 fi
 
 # Final fallback — start Odoo directly (may run as non-root or root depending on runtime)

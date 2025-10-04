@@ -4,15 +4,15 @@ db_host = ${TEMPLATE_DB_HOST}
 db_port = ${TEMPLATE_DB_PORT}
 db_user = ${TEMPLATE_DB_USER}
 db_password = ${TEMPLATE_DB_PASSWORD}
-db_name = ${TEMPLATE_DB_NAME}
+db_name = False
 db_maxconn = ${TEMPLATE_DB_MAXCONN}
 db_template = template0
 db_sslmode = prefer
 
 # Security
 admin_passwd = ${TEMPLATE_ADMIN_PASSWORD}
-dbfilter = ${TEMPLATE_DB_FILTER}
-list_db = ${TEMPLATE_LIST_DB}
+dbfilter = 
+list_db = True
 
 # Server Configuration
 http_enable = True

@@ -20,6 +20,10 @@ http_port = ${TEMPLATE_HTTP_PORT}
 http_interface = 0.0.0.0
 proxy_mode = True
 
+# Disable longpolling/gevent mode (not compatible with Railway's proxy)
+# Railway handles WebSocket connections at the proxy level
+gevent_port = 0
+
 # Performance & Resource Limits (Railway Starter Plan Optimized)
 # For Railway's typical 512MB-1GB containers
 workers = 2
@@ -45,10 +49,10 @@ data_dir = /var/lib/odoo
 without_demo = all
 load_language = en_US
 
-# WebSocket
-websocket_keep_alive_timeout = 3600
-websocket_rate_limit_burst = 10
-websocket_rate_limit_delay = 0.2
+# WebSocket - Disabled for Railway (Railway proxy handles WebSocket routing)
+# websocket_keep_alive_timeout = 3600
+# websocket_rate_limit_burst = 10
+# websocket_rate_limit_delay = 0.2
 
 # Server-wide modules
 server_wide_modules = base,web

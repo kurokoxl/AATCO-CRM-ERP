@@ -19,10 +19,16 @@
 				"ODOO_DB_FILTER": "^railway$",
 				"ADMIN_PASSWORD": "CHANGE_ME_TO_SECURE_PASSWORD"
 			},
+			"volumes": [
+				{
+					"name": "odoo-filestore",
+					"mountPath": "/var/lib/odoo"
+				}
+			],
 			"healthcheck": {
-				"path": "/web/health",
+				"path": "/web/database/selector",
 				"timeout": 180,
-				"gracePeriod": 60
+				"gracePeriod": 90
 			},
 			"deploy": {
 				"startCommand": "odoo",

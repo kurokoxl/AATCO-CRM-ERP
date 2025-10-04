@@ -32,11 +32,16 @@ COPY entrypoint.sh /usr/local/bin/odoo-entrypoint.sh
 
 # Ensure correct ownership and permissions
 RUN chown -R odoo:odoo /mnt/extra-addons /etc/odoo && \
-    chmod +x /usr/local/bin/odoo-entrypoint.sh
+    chmod +x /usr/local/bin/odoo-entrypoint.sh && \
+    mkdir -p /var/lib/odoo/filestore && \
+    chown -R odoo:odoo /var/lib/odoo
 
 # Switch back to the odoo user provided by the base image
 USER odoo
 ENV ODOO_RC=/etc/odoo/odoo.conf
+
+# Define volume for persistent data
+VOLUME ["/var/lib/odoo"]
 
 ENTRYPOINT ["/usr/local/bin/odoo-entrypoint.sh"]
 # Set the default command to run when starting the container

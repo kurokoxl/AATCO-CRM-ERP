@@ -1,0 +1,58 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Backups and temporary files
+*.dump
+*.sql
+*.bak
+*.tmp
+*.swp
+*~
+backups/
+
+# Scripts (not needed in production)
+scripts/
+*.ps1
+*.bat
+
+# Documentation
+README.md
+*.md
+docs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Railway files (not needed in container)
+railway.json
+railway.template.json
+push.ps1
+
+# Python utilities (not needed in runtime)
+restore_to_railway.py
+reset_database.py
+post_restore_fix.py
+odoo_bypass.py
+fix_db_permissions.py
+
+# Any local test or development files
+test/
+tests/
+*.test.py

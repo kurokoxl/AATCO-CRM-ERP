@@ -1,0 +1,60 @@
+[options]
+# Database Configuration
+db_host = ${TEMPLATE_DB_HOST}
+db_port = ${TEMPLATE_DB_PORT}
+db_user = ${TEMPLATE_DB_USER}
+db_password = ${TEMPLATE_DB_PASSWORD}
+db_name = ${TEMPLATE_DB_NAME}
+db_maxconn = ${TEMPLATE_DB_MAXCONN}
+db_template = template0
+db_sslmode = prefer
+
+# Security
+admin_passwd = ${TEMPLATE_ADMIN_PASSWORD}
+dbfilter = ${TEMPLATE_DB_FILTER}
+list_db = ${TEMPLATE_LIST_DB}
+
+# Server Configuration
+http_enable = True
+http_port = ${TEMPLATE_HTTP_PORT}
+http_interface = 0.0.0.0
+proxy_mode = True
+
+# Performance & Resource Limits (Railway Starter Plan Optimized)
+# For Railway's typical 512MB-1GB containers
+workers = 2
+max_cron_threads = 1
+limit_memory_soft = 671088640
+limit_memory_hard = 805306368
+limit_time_cpu = 600
+limit_time_real = 1200
+limit_time_real_cron = -1
+limit_request = 8192
+
+# Logging
+log_level = info
+log_handler = :INFO
+logfile = False
+syslog = False
+
+# Additional paths
+addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+data_dir = /var/lib/odoo
+
+# Internationalization
+without_demo = all
+load_language = en_US
+
+# WebSocket
+websocket_keep_alive_timeout = 3600
+websocket_rate_limit_burst = 10
+websocket_rate_limit_delay = 0.2
+
+# Server-wide modules
+server_wide_modules = base,web
+
+# Misc
+unaccent = False
+test_enable = False
+screencasts = 
+screenshots = /tmp/odoo_tests

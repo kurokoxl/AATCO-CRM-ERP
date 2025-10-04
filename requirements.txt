@@ -1,0 +1,10 @@
+# Python dependencies for Odoo 18 custom modules
+# Add any additional packages required by your custom addons here
+
+# Common utilities (often needed by custom modules)
+requests>=2.31.0
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# If you need specific versions, pin them like this:
+# somepackage==1.2.3

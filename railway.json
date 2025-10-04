@@ -1,4 +1,5 @@
 {
+	"$schema": "https://railway.app/railway.schema.json",
 	"services": [
 		{
 			"name": "odoo",
@@ -10,13 +11,23 @@
 			},
 			"env": {
 				"ODOO_HTTP_PORT": "8069",
-				"DB_NAME": "aatco",
-				"ODOO_APP_DB_USER": "odoo_user"
+				"DB_NAME": "railway",
+				"ODOO_APP_DB_USER": "odoo_user",
+				"ODOO_INIT_DB": "false",
+				"ODOO_LIST_DB": "false",
+				"ODOO_AUTO_PROVISION_DB_USER": "true",
+				"ODOO_DB_FILTER": "^railway$",
+				"ADMIN_PASSWORD": "CHANGE_ME_TO_SECURE_PASSWORD"
 			},
 			"healthcheck": {
 				"path": "/web/health",
 				"timeout": 180,
 				"gracePeriod": 60
+			},
+			"deploy": {
+				"startCommand": "odoo",
+				"restartPolicyType": "ON_FAILURE",
+				"restartPolicyMaxRetries": 10
 			}
 		}
 	],

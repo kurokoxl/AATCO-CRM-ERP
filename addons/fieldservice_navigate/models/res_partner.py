@@ -4,19 +4,16 @@ from odoo.exceptions import UserError
 import urllib.parse
 
 
-class FSMOrder(models.Model):
-    _inherit = 'fsm.order'
+class ResPartner(models.Model):
+    _inherit = 'res.partner'
 
     def action_navigate_to_location(self):
         """
-        Opens Google Maps with navigation from current location to order location
+        Opens Google Maps with navigation from current location to partner location
         """
         self.ensure_one()
         
-        if not self.location_id:
-            raise UserError("This order has no location assigned.")
-        
-        location = self.location_id
+        location = self
         
         # Try to build the destination address
         destination_parts = []
@@ -40,7 +37,7 @@ class FSMOrder(models.Model):
                 destination_parts.append(location.country_id.name)
             
             if not destination_parts:
-                raise UserError("This location doesn't have a valid address or coordinates.")
+                raise UserError("This contact doesn't have a valid address or coordinates.")
             
             destination = ", ".join(destination_parts)
         

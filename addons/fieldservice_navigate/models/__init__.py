@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-from . import fsm_order
+from . import res_partner

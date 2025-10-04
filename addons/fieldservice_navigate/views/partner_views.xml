@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_partner_view_form_navigate" model="ir.ui.view">
+        <field name="name">res.partner.view.form.navigate</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- Add Navigate button in the button box -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button 
+                    name="action_navigate_to_location" 
+                    type="object" 
+                    class="oe_stat_button" 
+                    icon="fa-map-marker"
+                    string="Navigate"
+                    invisible="not street and not city"
+                    help="Open Google Maps navigation to this contact's address">
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>
